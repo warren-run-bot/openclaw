@@ -499,6 +499,38 @@ describe("openai-compatible generic embedding provider", () => {
     });
   });
 
+  it("splits embedding batches above the provider input cap and preserves order", async () => {
+    const server = await startEmbeddingServer({
+      respond: ({ body }) => ({
+        object: "list",
+        data: (body.input as string[]).map((text, index) => ({
+          object: "embedding",
+          embedding: [Number(text)],
+          index,
+        })),
+      }),
+    });
+    const { provider } = await createOpenAICompatibleEmbeddingProvider(
+      createOptions({ model: "text-embedding-v4", remote: { baseUrl: server.baseUrl } }),
+    );
+
+    const inputs = Array.from({ length: 25 }, (_, i) => String(i));
+    await expect(provider.embedBatch(inputs)).resolves.toEqual(
+      inputs.map((text) => [Number(text)]),
+    );
+
+    expect(server.requests).toHaveLength(3);
+    expect(server.requests.map((request) => request.body.input)).toEqual([
+      inputs.slice(0, 10),
+      inputs.slice(10, 20),
+      inputs.slice(20),
+    ]);
+    // DashScope text-embedding-v4 rejects requests with more than 10 inputs (HTTP 400).
+    for (const request of server.requests) {
+      expect((request.body.input as string[]).length).toBeLessThanOrEqual(10);
+    }
+  });
+
   it("bounds exact-limit embedding errors without splitting UTF-16 and cancels", async () => {
     const server = await startHangingErrorEmbeddingServer();
     const { provider } = await createOpenAICompatibleEmbeddingProvider(
