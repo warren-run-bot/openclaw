@@ -27,6 +27,9 @@ const OPENAI_COMPATIBLE_MODEL_APIS = new Set(["openai-completions", "openai-resp
 const EMBEDDING_ERROR_BODY_MAX_BYTES = 8 * 1024;
 const EMBEDDING_ERROR_BODY_MAX_CHARS = 1_000;
 const EMBEDDING_ERROR_TRUNCATED_SUFFIX = "... [truncated]";
+// Widely-compatible per-request input cap: DashScope text-embedding-v4 rejects batches above
+// 10 texts with HTTP 400; splitting to this size keeps every OpenAI-compatible server working.
+const EMBEDDING_REQUEST_MAX_INPUTS = 10;
 
 /** Normalized OpenAI-compatible embedding client configuration. */
 type OpenAICompatibleEmbeddingClient = {
@@ -397,12 +400,21 @@ async function createOpenAICompatibleEmbeddingProvider(
     if (inputs.length === 0) {
       return [];
     }
-    return await postEmbeddingRequest({
-      client,
-      input: inputs.map(embeddingInputToText),
-      signal: callOptions?.signal,
-      inputType: callOptions?.inputType,
-    });
+    const texts = inputs.map(embeddingInputToText);
+    // Providers cap inputs per request (e.g. DashScope text-embedding-v4: 10); split and
+    // concatenate in order so callers always receive vectors aligned to their input order.
+    const vectors: number[][] = [];
+    for (let offset = 0; offset < texts.length; offset += EMBEDDING_REQUEST_MAX_INPUTS) {
+      vectors.push(
+        ...(await postEmbeddingRequest({
+          client,
+          input: texts.slice(offset, offset + EMBEDDING_REQUEST_MAX_INPUTS),
+          signal: callOptions?.signal,
+          inputType: callOptions?.inputType,
+        })),
+      );
+    }
+    return vectors;
   };
   return {
     provider: {
