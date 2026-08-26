@@ -73,7 +73,7 @@ export const portalHandlers: GatewayRequestHandlers = {
     }
     try {
       const request = params as PortalOpenParams;
-      const portal = await service.open({
+      const opened = await service.open({
         targetPort: request.port,
         ...(request.title !== undefined ? { title: request.title } : {}),
         ...(request.description !== undefined ? { description: request.description } : {}),
@@ -84,7 +84,7 @@ export const portalHandlers: GatewayRequestHandlers = {
         { portals: service.list().map(redactPortalSummary) },
         { dropIfSlow: true },
       );
-      respond(true, portal, undefined);
+      respond(true, opened.portal, undefined);
     } catch (error) {
       respond(
         false,
