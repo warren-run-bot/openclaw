@@ -4,6 +4,10 @@ import {
   markGatewayRestartDraining,
   resetGatewayWorkAdmission,
 } from "../../process/gateway-work-admission.js";
+import {
+  readConfigMachineState,
+  writeConfigMachineState,
+} from "../../state/config-machine-state.js";
 import { openOpenClawStateDatabase } from "../../state/openclaw-state-db.js";
 import {
   createOpenClawTestState,
@@ -43,24 +47,23 @@ describe("skill collection review gateway admission", () => {
       { name: "useful", description: "Useful reusable procedure" },
     ]);
     const database = openOpenClawStateDatabase({ env: testState.env }).db;
-    database
-      .prepare(
-        "INSERT INTO skill_curator_state (id, last_attempt_at_ms, last_success_at_ms, last_error, last_result_json) VALUES (?, ?, ?, ?, ?)",
-      )
-      .run(
-        1,
-        41,
-        23,
-        "previous unrelated failure",
-        JSON.stringify({
+    writeConfigMachineState(
+      "skills.curatorState",
+      {
+        lastAttemptAtMs: 41,
+        lastSuccessAtMs: 23,
+        lastError: "previous unrelated failure",
+        lastResult: {
           unrelated: { preserved: true },
           collectionReviewAttempts: { "other-workspace": 41 },
           collectionReviewSuccess: { "other-workspace": 23 },
-        }),
-      );
-    const curatorStateBefore = database
-      .prepare("SELECT * FROM skill_curator_state WHERE id = 1")
-      .get();
+        },
+      },
+      { env: testState.env },
+    );
+    const curatorStateBefore = readConfigMachineState("skills.curatorState", {
+      env: testState.env,
+    });
     const writesBefore = database.prepare("SELECT total_changes() AS count").get();
     expect(isSkillCollectionReviewDue(workspaceDir, Date.now(), { env: testState.env })).toBe(true);
 
@@ -77,7 +80,7 @@ describe("skill collection review gateway admission", () => {
 
     expect(onError).toHaveBeenCalledWith(expect.any(GatewayDrainingError), workspaceDir);
     expect(runEmbeddedAgent).not.toHaveBeenCalled();
-    expect(database.prepare("SELECT * FROM skill_curator_state WHERE id = 1").get()).toEqual(
+    expect(readConfigMachineState("skills.curatorState", { env: testState.env })).toEqual(
       curatorStateBefore,
     );
     expect(database.prepare("SELECT total_changes() AS count").get()).toEqual(writesBefore);
