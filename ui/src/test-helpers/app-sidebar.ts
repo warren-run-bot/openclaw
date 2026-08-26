@@ -70,6 +70,7 @@ export type SidebarLifecycleState = HTMLElement & {
   sidebarLiveActivity: boolean;
   onUpdateSidebarEntries?: (entries: string[]) => void;
   pinnedAgentIds: readonly string[];
+  readonly sessionOwnerFilterId: string | null;
   sessionKey: string;
   onNavigate: (
     routeId: string,
