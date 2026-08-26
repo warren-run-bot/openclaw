@@ -63,6 +63,7 @@
     "!dist/plugin-sdk/channel-config-writes.d.ts",
     "!dist/plugin-sdk/channel-contract-testing.js",
     "!dist/plugin-sdk/channel-contract-testing.d.ts",
+    "!dist/plugin-sdk/channel-join-intro-runtime.d.ts",
     "!dist/plugin-sdk/channel-mention-gating.d.ts",
     "!dist/plugin-sdk/channel-route.d.ts",
     "!dist/plugin-sdk/channel-secret-owner-runtime.d.ts",
@@ -607,6 +608,9 @@
     },
     "./plugin-sdk/channel-activity-runtime": {
       "default": "./dist/plugin-sdk/channel-activity-runtime.js"
+    },
+    "./plugin-sdk/channel-join-intro-runtime": {
+      "default": "./dist/plugin-sdk/channel-join-intro-runtime.js"
     },
     "./plugin-sdk/concurrency-runtime": {
       "default": "./dist/plugin-sdk/concurrency-runtime.js"
